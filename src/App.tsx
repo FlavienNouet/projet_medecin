@@ -323,6 +323,23 @@ function makePatientPassword(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function makeUniquePatientToken(name: string, patients: Patient[]): string {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const token = makeTokenFromName(name);
+    if (!patients.some((patient) => patient.token.toLowerCase() === token.toLowerCase())) {
+      return token;
+    }
+  }
+
+  return `${name
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 14) || "patient"}-${Date.now().toString(36)}`;
+}
+
 function daysSince(dateIso: string): number {
   const date = new Date(dateIso);
   if (Number.isNaN(date.getTime())) {
@@ -382,6 +399,8 @@ export default function App() {
   const [patientAccountTokenInput, setPatientAccountTokenInput] = useState("");
   const [patientAccountPasswordInput, setPatientAccountPasswordInput] = useState("");
   const [patientAccountStatus, setPatientAccountStatus] = useState<"idle" | "saved">("idle");
+  const [patientCreateStatus, setPatientCreateStatus] = useState<"idle" | "created">("idle");
+  const [quickAssignStatus, setQuickAssignStatus] = useState<"idle" | "saved">("idle");
   const [reminderSessionsPerWeek, setReminderSessionsPerWeek] = useState(3);
   const [reminderChannel, setReminderChannel] = useState<"email" | "sms">("email");
   const [reminderTime, setReminderTime] = useState("18:30");
@@ -395,14 +414,14 @@ export default function App() {
   const [practitionerPasswordInput, setPractitionerPasswordInput] = useState("");
   const [authError, setAuthError] = useState("");
   const [authInfo, setAuthInfo] = useState("");
-  const [activePractitionerTab, setActivePractitionerTab] = useState<PractitionerTab>("dashboard");
+  const [activePractitionerTab, setActivePractitionerTab] = useState<PractitionerTab>("assignation");
   const [activePractitionerPatientTab, setActivePractitionerPatientTab] = useState<PractitionerPatientTab>("patients");
   const [patientAccountsSearch, setPatientAccountsSearch] = useState("");
   const [patientAccountsCarouselIndex, setPatientAccountsCarouselIndex] = useState(0);
   const [protocolsSearch, setProtocolsSearch] = useState("");
   const [protocolsCarouselIndex, setProtocolsCarouselIndex] = useState(0);
-  const [activePatientTab, setActivePatientTab] = useState<PatientTab>("dashboard");
-  const [patientExerciseFilter, setPatientExerciseFilter] = useState<PatientExerciseFilter>("all");
+  const [activePatientTab, setActivePatientTab] = useState<PatientTab>("exercices");
+  const [patientExerciseFilter, setPatientExerciseFilter] = useState<PatientExerciseFilter>("pending");
 
   const allPatients = state.patients;
   const practitioners = state.practitioners;
@@ -1033,18 +1052,19 @@ export default function App() {
       return;
     }
 
-    const patient = state.patients.find((item) => item.token === token);
-    if (!patient) {
+    const patientsForToken = state.patients.filter((item) => item.token.toLowerCase() === token);
+    if (patientsForToken.length === 0) {
       setAuthError("Identifiant patient invalide.");
       return;
     }
 
-    if (!patient.password) {
+    if (!patientsForToken.some((item) => item.password)) {
       setAuthError("Ce compte patient n'a pas encore de mot de passe. Demandez au praticien de régénérer le compte.");
       return;
     }
 
-    if (patient.password !== password) {
+    const patient = patientsForToken.find((item) => item.password === password);
+    if (!patient) {
       setAuthError("Mot de passe patient invalide.");
       return;
     }
@@ -1197,6 +1217,8 @@ export default function App() {
       ...state,
       assignments: nextAssignments
     });
+
+    setQuickAssignStatus("saved");
   }
 
   function addPatient() {
@@ -1210,7 +1232,7 @@ export default function App() {
       return;
     }
 
-    const token = makeTokenFromName(cleaned);
+    const token = makeUniquePatientToken(cleaned, state.patients);
     const password = makePatientPassword();
     const nextPatient = {
       id: makeId("pat"),
@@ -1229,6 +1251,7 @@ export default function App() {
     setSelectedPatientId(nextPatient.id);
     setNewPatientName("");
     setLatestPatientAccess({ id: nextPatient.id, name: nextPatient.name, token, password });
+    setPatientCreateStatus("created");
     setAuthInfo(`Compte patient créé: identifiant ${token} / mot de passe ${password}`);
   }
 
@@ -1968,6 +1991,22 @@ export default function App() {
   }, [protocolStatus]);
 
   useEffect(() => {
+    if (patientCreateStatus === "idle") {
+      return;
+    }
+    const timer = window.setTimeout(() => setPatientCreateStatus("idle"), 2200);
+    return () => window.clearTimeout(timer);
+  }, [patientCreateStatus]);
+
+  useEffect(() => {
+    if (quickAssignStatus === "idle") {
+      return;
+    }
+    const timer = window.setTimeout(() => setQuickAssignStatus("idle"), 2200);
+    return () => window.clearTimeout(timer);
+  }, [quickAssignStatus]);
+
+  useEffect(() => {
     if (painSubmitStatus === "idle") {
       return;
     }
@@ -2073,66 +2112,45 @@ export default function App() {
       {!isPractitionerAuthenticated && !isPatientAuthenticated && (
         <section className="card auth-card">
           <h2>Connexion</h2>
-          <p className="small-text">Même URL pour tous: choisissez votre espace puis connectez-vous.</p>
+          <p className="small-text">Même URL pour tous : choisissez le profil puis connectez-vous.</p>
           <div className="tabs auth-tabs">
-            <button className={view === "praticien" ? "active" : ""} onClick={() => setView("praticien")}>Espace praticien</button>
-            <button className={view === "patient" ? "active" : ""} onClick={() => setView("patient")}>Espace patient</button>
-          </div>
-        </section>
-      )}
-
-      {view === "praticien" && isPractitionerAuthenticated && (
-        <div className="action-row auth-actions">
-          <button onClick={logoutPractitioner}>Se déconnecter (praticien)</button>
-        </div>
-      )}
-
-      {view === "patient" && isPatientAuthenticated && (
-        <div className="action-row auth-actions">
-          <button onClick={logoutPatient}>Se déconnecter (patient)</button>
-        </div>
-      )}
-
-      {view === "praticien" && !isPractitionerAuthenticated && (
-        <section className="card auth-card">
-          <h2>Connexion praticien</h2>
-          <p className="small-text">Le praticien doit se connecter pour accéder au dashboard et gérer ses patients.</p>
-
-          <div className="tabs auth-tabs">
-            <button className={practitionerMode === "register" ? "active" : ""} onClick={() => setPractitionerMode("register")}>Créer un compte</button>
-            <button className={practitionerMode === "login" ? "active" : ""} onClick={() => setPractitionerMode("login")}>Se connecter</button>
+            <button className={view === "praticien" ? "active" : ""} onClick={() => setView("praticien")}>Praticien</button>
+            <button className={view === "patient" ? "active" : ""} onClick={() => setView("patient")}>Patient</button>
           </div>
 
-          {practitionerMode === "register" && (
-            <label>
-              Nom du praticien
-              <input value={practitionerNameInput} onChange={(event) => setPractitionerNameInput(event.target.value)} placeholder="Ex: Dr Martin" />
-            </label>
-          )}
+          {view === "praticien" ? (
+            <>
+              <p className="small-text">Le praticien doit se connecter pour gérer ses patients et protocoles.</p>
+              <div className="tabs auth-tabs">
+                <button className={practitionerMode === "register" ? "active" : ""} onClick={() => setPractitionerMode("register")}>Créer un compte</button>
+                <button className={practitionerMode === "login" ? "active" : ""} onClick={() => setPractitionerMode("login")}>Se connecter</button>
+              </div>
 
-          <label>
-            Email
-            <input value={practitionerEmailInput} onChange={(event) => setPractitionerEmailInput(event.target.value)} placeholder="email@cabinet.fr" />
-          </label>
-          <label>
-            Mot de passe
-            <input type="password" value={practitionerPasswordInput} onChange={(event) => setPractitionerPasswordInput(event.target.value)} placeholder="••••••••" />
-          </label>
+              {practitionerMode === "register" && (
+                <label>
+                  Nom du praticien
+                  <input value={practitionerNameInput} onChange={(event) => setPractitionerNameInput(event.target.value)} placeholder="Ex: Dr Martin" />
+                </label>
+              )}
 
-          <div className="action-row">
-            {practitionerMode === "register" ? (
-              <button onClick={registerPractitioner}>Créer mon compte praticien</button>
-            ) : (
-              <button onClick={loginPractitioner}>Connexion praticien</button>
-            )}
-          </div>
-        </section>
-      )}
+              <label>
+                Email
+                <input value={practitionerEmailInput} onChange={(event) => setPractitionerEmailInput(event.target.value)} placeholder="email@cabinet.fr" />
+              </label>
+              <label>
+                Mot de passe
+                <input type="password" value={practitionerPasswordInput} onChange={(event) => setPractitionerPasswordInput(event.target.value)} placeholder="••••••••" />
+              </label>
 
-      {view === "patient" && !isPatientAuthenticated && (
-        <section className="card auth-card">
-          <h2>Connexion patient</h2>
-          {state.practitioners.length === 0 ? (
+              <div className="action-row">
+                {practitionerMode === "register" ? (
+                  <button onClick={registerPractitioner}>Créer mon compte praticien</button>
+                ) : (
+                  <button onClick={loginPractitioner}>Connexion praticien</button>
+                )}
+              </div>
+            </>
+          ) : state.practitioners.length === 0 ? (
             <p className="error">Accès patient bloqué: un praticien doit d'abord créer son compte.</p>
           ) : (
             <>
@@ -2153,11 +2171,23 @@ export default function App() {
         </section>
       )}
 
+      {view === "praticien" && isPractitionerAuthenticated && (
+        <div className="action-row auth-actions">
+          <button onClick={logoutPractitioner}>Se déconnecter (praticien)</button>
+        </div>
+      )}
+
+      {view === "patient" && isPatientAuthenticated && (
+        <div className="action-row auth-actions">
+          <button onClick={logoutPatient}>Se déconnecter (patient)</button>
+        </div>
+      )}
+
       {view === "praticien" ? (
         isPractitionerAuthenticated ? (
           <main className="grid app-with-sidebar">
           <aside className="card side-tabs" aria-label="Navigation praticien">
-            <h3>Parties</h3>
+            <h3>Navigation</h3>
             <button type="button" className={`side-tab-link ${activePractitionerTab === "dashboard" ? "active" : ""}`} onClick={() => setActivePractitionerTab("dashboard")}>Dashboard</button>
             <button type="button" className={`side-tab-link ${activePractitionerTab === "assignation" ? "active" : ""}`} onClick={() => setActivePractitionerTab("assignation")}>Assignation rapide</button>
             <button type="button" className={`side-tab-link ${activePractitionerTab === "patients" ? "active" : ""}`} onClick={() => setActivePractitionerTab("patients")}>Patients & protocoles</button>
@@ -2302,7 +2332,8 @@ export default function App() {
               })}
             </div>
 
-            <button onClick={assignToPatient} disabled={!selectedPatientId || quickAssignProtocolIds.length === 0}>Assigner en 1 clic</button>
+            <button className={quickAssignStatus === "saved" ? "is-sent" : ""} onClick={assignToPatient} disabled={!selectedPatientId || quickAssignProtocolIds.length === 0}>Assigner en 1 clic</button>
+            {quickAssignStatus === "saved" && <p className="success assign-feedback">✅ Protocole(s) assigné(s) avec succès.</p>}
           </section>}
 
           {activePractitionerTab === "patients" && <section id="pro-patients" className="card section-anchor">
@@ -2324,7 +2355,8 @@ export default function App() {
                       placeholder="Ex: Léa Dupont"
                     />
                   </label>
-                  <button onClick={addPatient} disabled={!newPatientName.trim()}>Créer patient</button>
+                  <button className={patientCreateStatus === "created" ? "is-sent" : ""} onClick={addPatient} disabled={!newPatientName.trim()}>Créer patient</button>
+                  {patientCreateStatus === "created" && <p className="success account-create-feedback">✅ Compte patient créé.</p>}
 
                   {latestPatientAccess && (
                     <div className="link-box patient-created-box">
@@ -2859,12 +2891,12 @@ export default function App() {
         isPatientAuthenticated ? (
           <main className="grid patient-grid app-with-sidebar patient-with-sidebar">
           <aside className="card side-tabs" aria-label="Navigation patient">
-            <h3>Parties</h3>
-            <button type="button" className={`side-tab-link ${activePatientTab === "dashboard" ? "active" : ""}`} onClick={() => setActivePatientTab("dashboard")}>Vue d'ensemble</button>
-            <button type="button" className={`side-tab-link ${activePatientTab === "acces" ? "active" : ""}`} onClick={() => setActivePatientTab("acces")}>Mon compte</button>
+            <h3>Navigation</h3>
             <button type="button" className={`side-tab-link ${activePatientTab === "exercices" ? "active" : ""}`} onClick={() => setActivePatientTab("exercices")}>Mon programme</button>
             <button type="button" className={`side-tab-link ${activePatientTab === "douleur" ? "active" : ""}`} onClick={() => setActivePatientTab("douleur")}>Mon ressenti</button>
             <button type="button" className={`side-tab-link ${activePatientTab === "historique" ? "active" : ""}`} onClick={() => setActivePatientTab("historique")}>Activité</button>
+            <button type="button" className={`side-tab-link ${activePatientTab === "dashboard" ? "active" : ""}`} onClick={() => setActivePatientTab("dashboard")}>Vue d'ensemble</button>
+            <button type="button" className={`side-tab-link ${activePatientTab === "acces" ? "active" : ""}`} onClick={() => setActivePatientTab("acces")}>Mon compte</button>
           </aside>
           <div className="content-stack single-panel">
           {currentPatient && activePatientTab === "dashboard" && (
@@ -2967,7 +2999,7 @@ export default function App() {
           {currentPatient && activePatientTab === "exercices" && (
               <section id="pat-exercices" className="card wide section-anchor">
                 <div className="patient-program-header">
-                  <h2>Mon programme - {currentPatient.name}</h2>
+                  <h2>Ma séance - {currentPatient.name}</h2>
                   <div className="program-filter-tabs" role="tablist" aria-label="Filtrer les séances">
                     <button type="button" className={patientExerciseFilter === "all" ? "active" : ""} onClick={() => setPatientExerciseFilter("all")}>Tous</button>
                     <button type="button" className={patientExerciseFilter === "done" ? "active" : ""} onClick={() => setPatientExerciseFilter("done")}>Terminées</button>
@@ -2996,7 +3028,7 @@ export default function App() {
                               disabled={completedExerciseIds.has(featuredPatientExercise.id)}
                               onClick={() => markExerciseDone(currentPatient.id, featuredPatientExercise.id)}
                             >
-                              {completedExerciseIds.has(featuredPatientExercise.id) ? "Séance terminée" : "Cocher comme fait"}
+                              {completedExerciseIds.has(featuredPatientExercise.id) ? "Séance terminée" : "Valider la séance"}
                             </button>
                           </div>
                           {exerciseSubmitStatusId === featuredPatientExercise.id && <p className="success exercise-submit-feedback">✅ Séance enregistrée.</p>}
@@ -3027,7 +3059,7 @@ export default function App() {
                                   <div className="action-row">
                                     <a href={exercise.videoUrl} target="_blank" rel="noreferrer">Ouvrir la vidéo</a>
                                     <button className={exerciseSubmitStatusId === exercise.id ? "is-sent" : ""} disabled={done} onClick={() => markExerciseDone(currentPatient.id, exercise.id)}>
-                                      {done ? "Séance terminée" : "Cocher comme fait"}
+                                      {done ? "Séance terminée" : "Valider la séance"}
                                     </button>
                                   </div>
                                   {exerciseSubmitStatusId === exercise.id && <p className="success exercise-submit-feedback">✅ Séance enregistrée.</p>}
@@ -3076,7 +3108,7 @@ export default function App() {
                     rows={3}
                   />
                 </label>
-                <button className={painSubmitStatus === "saved" ? "is-sent" : ""} onClick={() => submitPainLog(currentPatient.id)}>Envoyer mon ressenti</button>
+                <button className={painSubmitStatus === "saved" ? "is-sent" : ""} onClick={() => submitPainLog(currentPatient.id)}>Enregistrer mon ressenti</button>
                 {painSubmitStatus === "saved" && <p className="success pain-submit-feedback">✅ Ressenti enregistré avec succès.</p>}
               </section>}
 
