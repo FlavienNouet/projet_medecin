@@ -145,14 +145,14 @@ a:hover {
 
 .tabs {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   margin: 16px 0 20px;
-  padding: 6px;
-  border: 1px solid #c8e2df;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(7px);
-  box-shadow: var(--shadow-sm);
+  padding: 5px;
+  border: 1px solid #d4e9e6;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 252, 251, 0.98));
+  backdrop-filter: blur(9px);
+  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 button,
@@ -164,15 +164,16 @@ textarea {
 
 button {
   border: 1px solid #b8d8d4;
-  border-radius: 11px;
-  background: #ffffff;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f7fcfb);
   color: #104846;
   padding: 10px 14px;
   min-height: 44px;
   line-height: 1.2;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.16s ease;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 button:not(.active) {
@@ -180,16 +181,16 @@ button:not(.active) {
 }
 
 button.active {
-  background: #0f766e;
+  background: linear-gradient(180deg, #0f766e, #0c6962);
   color: #f0fdfa;
   border-color: #0f766e;
-  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.22);
+  box-shadow: 0 9px 18px rgba(15, 118, 110, 0.24);
 }
 
 button:hover:not(:disabled) {
-  border-color: #7cb8b2;
+  border-color: #78bcb5;
   transform: translateY(-1px);
-  box-shadow: 0 7px 14px rgba(15, 23, 42, 0.09);
+  box-shadow: 0 9px 16px rgba(15, 23, 42, 0.1);
 }
 
 button:active:not(:disabled) {
@@ -710,11 +711,28 @@ header .small-text {
 }
 
 .auth-card {
-  max-width: 660px;
+  max-width: 760px;
+  margin: 16px auto 10px;
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid #d7ebe8;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.08), transparent 36%),
+    linear-gradient(180deg, #ffffff, #f8fcfb);
+  box-shadow: 0 18px 34px rgba(10, 76, 72, 0.12);
 }
 
 .auth-tabs {
-  margin: 6px 0 14px;
+  margin: 8px 0 14px;
+}
+
+.auth-card h2 {
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.auth-card .small-text {
+  max-width: 68ch;
 }
 
 .auth-actions {
@@ -1397,45 +1415,71 @@ button.is-sent {
 
 .app-with-sidebar {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 268px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
 .side-tabs {
   position: sticky;
-  top: 14px;
+  top: 16px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  border-radius: 16px;
+  border: 1px solid #d8ebe8;
+  background: linear-gradient(180deg, #ffffff, #f8fcfb);
+  box-shadow: 0 16px 30px rgba(10, 76, 72, 0.1);
 }
 
 .side-tabs h3 {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5a7f7c;
 }
 
 .side-tab-link {
   display: block;
-  border: 1px solid #cfe5e2;
-  border-radius: 10px;
-  padding: 9px 10px;
-  color: #15514d;
-  font-weight: 600;
-  background: linear-gradient(180deg, #ffffff, #f7fcfb);
+  border: 1px solid #d0e7e4;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #1a5250;
+  font-weight: 650;
+  background: linear-gradient(180deg, #ffffff, #f7fbfb);
   text-align: left;
   width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.side-tab-link::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: transparent;
 }
 
 .side-tab-link:hover {
   text-decoration: none;
-  border-color: #8ac3bc;
-  background: #effaf8;
+  border-color: #8fc9c3;
+  background: linear-gradient(180deg, #f9fffe, #effaf8);
+  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.12);
 }
 
 .side-tab-link.active {
   border-color: #0f766e;
-  background: linear-gradient(180deg, #0f766e, #0c6b64);
-  color: #ecfeff;
-  box-shadow: 0 10px 18px rgba(15, 118, 110, 0.25);
+  background: linear-gradient(180deg, #ecfdfa, #dcf6f2);
+  color: #0f5b56;
+  box-shadow: 0 10px 20px rgba(15, 118, 110, 0.16);
+}
+
+.side-tab-link.active::before {
+  background: linear-gradient(180deg, #14b8a6, #0f766e);
 }
 
 .content-stack {
@@ -1510,7 +1554,7 @@ button.is-sent {
 
   .side-tabs {
     position: static;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
   }
 
   .content-stack {

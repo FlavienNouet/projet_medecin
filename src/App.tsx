@@ -2091,19 +2091,6 @@ export default function App() {
           <span>Parcours patient sécurisé</span>
           <span>Usage cabinet & domicile</span>
         </div>
-        <p className="small-text">
-          Persistance: SQLite + Prisma (base de données réelle)
-        </p>
-        {isPractitionerAuthenticated && (
-          <p className="small-text">
-            Session praticien: {currentPractitioner?.name} ({currentPractitioner?.email})
-          </p>
-        )}
-        {isPatientAuthenticated && (
-          <p className="small-text">
-            Session patient: {currentPatient?.name}
-          </p>
-        )}
       </header>
 
       {authInfo && <p className="success">{authInfo}</p>}
